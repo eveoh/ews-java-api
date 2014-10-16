@@ -10,6 +10,8 @@
 
 package microsoft.exchange.webservices.data;
 
+import org.apache.commons.httpclient.HttpConnectionManager;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -307,7 +309,7 @@ IAutodiscoverRedirectionUrl, IFunctionDelegate {
 		this.traceMessage(TraceFlags.AutodiscoverConfiguration, String.format(
 				"Trying to get Autodiscover redirection URL from %s.", url));
 
-		HttpWebRequest request = new HttpClientWebRequest(this.getSimpleHttpConnectionManager());
+		HttpWebRequest request = new HttpClientWebRequest(this.getHttpConnectionManager());
 		try {
 			request.setUrl(URI.create(url).toURL());
 		} catch (MalformedURLException e) {
@@ -1540,7 +1542,7 @@ IAutodiscoverRedirectionUrl, IFunctionDelegate {
 
 			endpoints.setParam(EnumSet.of(AutodiscoverEndpoints.None));
 
-			HttpWebRequest request = new HttpClientWebRequest(this.getSimpleHttpConnectionManager());
+			HttpWebRequest request = new HttpClientWebRequest(this.getHttpConnectionManager());
 			try {
 				request.setUrl(autoDiscoverUrl.toURL());
 			} catch (MalformedURLException e) {
@@ -1766,7 +1768,6 @@ IAutodiscoverRedirectionUrl, IFunctionDelegate {
 	/**
 	 * Initializes a new instance of the "AutodiscoverService" class.
 	 * @throws microsoft.exchange.webservices.data.ArgumentException
-	 * 
 	 */
 	public AutodiscoverService() throws ArgumentException {
 		this(ExchangeVersion.Exchange2010);
@@ -1774,22 +1775,44 @@ IAutodiscoverRedirectionUrl, IFunctionDelegate {
 
 	/**
 	 * Initializes a new instance of the "AutodiscoverService" class.
-	 * 
-	 * @param requestedServerVersion
-	 *            The requested server version.
+	 *
+	 * @param connectionManager         The HttpConnectionManager which should be used by the service.
+	 *
 	 * @throws microsoft.exchange.webservices.data.ArgumentException
 	 */
-	public AutodiscoverService(ExchangeVersion requestedServerVersion) 
-	throws ArgumentException {
-		this(null, null, requestedServerVersion);
+	public AutodiscoverService(HttpConnectionManager connectionManager) throws ArgumentException {
+		this(ExchangeVersion.Exchange2010, connectionManager);
 	}
 
 	/**
 	 * Initializes a new instance of the "AutodiscoverService" class.
 	 * 
-	 * @param domain
-	 *            The domain that will be used to determine the URL of the
-	 *            service.
+	 * @param requestedServerVersion    The requested server version.
+	 *
+	 * @throws microsoft.exchange.webservices.data.ArgumentException
+	 */
+	public AutodiscoverService(ExchangeVersion requestedServerVersion) throws ArgumentException {
+		this(null, null, requestedServerVersion);
+	}
+
+	/**
+	 * Initializes a new instance of the "AutodiscoverService" class.
+	 *
+	 * @param requestedServerVersion    The requested server version.
+	 * @param connectionManager         The HttpConnectionManager which should be used by the service.
+	 *
+	 * @throws microsoft.exchange.webservices.data.ArgumentException
+	 */
+	public AutodiscoverService(ExchangeVersion requestedServerVersion, HttpConnectionManager connectionManager)
+			throws ArgumentException {
+		this(null, null, requestedServerVersion, connectionManager);
+	}
+
+	/**
+	 * Initializes a new instance of the "AutodiscoverService" class.
+	 * 
+	 * @param domain                    The domain that will be used to determine the URL of the service.
+	 *
 	 * @throws microsoft.exchange.webservices.data.ArgumentException
 	 */
 	public AutodiscoverService(String domain) throws ArgumentException {
@@ -1798,24 +1821,47 @@ IAutodiscoverRedirectionUrl, IFunctionDelegate {
 
 	/**
 	 * Initializes a new instance of the "AutodiscoverService" class.
-	 * 
-	 * @param domain
-	 *            The domain that will be used to determine the URL of the
-	 *            service.
-	 * @param requestedServerVersion
-	 *            The requested server version.
+	 *
+	 * @param domain                    The domain that will be used to determine the URL of the service.
+	 * @param connectionManager         The HttpConnectionManager which should be used by the service.
+	 *
 	 * @throws microsoft.exchange.webservices.data.ArgumentException
 	 */
-	public AutodiscoverService(String domain,
-			ExchangeVersion requestedServerVersion) throws ArgumentException {
-		this(null, domain, requestedServerVersion);
+	public AutodiscoverService(String domain, HttpConnectionManager connectionManager) throws ArgumentException {
+		this(null, domain, connectionManager);
 	}
 
 	/**
 	 * Initializes a new instance of the "AutodiscoverService" class.
 	 * 
-	 * @param url
-	 *            The URL of the service.
+	 * @param domain                    The domain that will be used to determine the URL of the service.
+	 * @param requestedServerVersion    The requested server version.
+	 *
+	 * @throws microsoft.exchange.webservices.data.ArgumentException
+	 */
+	public AutodiscoverService(String domain, ExchangeVersion requestedServerVersion) throws ArgumentException {
+		this(null, domain, requestedServerVersion);
+	}
+
+	/**
+	 * Initializes a new instance of the "AutodiscoverService" class.
+	 *
+	 * @param domain                    The domain that will be used to determine the URL of the service.
+	 * @param requestedServerVersion    The requested server version.
+	 * @param connectionManager         The HttpConnectionManager which should be used by the service.
+	 *
+	 * @throws microsoft.exchange.webservices.data.ArgumentException
+	 */
+	public AutodiscoverService(String domain, ExchangeVersion requestedServerVersion,
+							   HttpConnectionManager connectionManager) throws ArgumentException {
+		this(null, domain, requestedServerVersion, connectionManager);
+	}
+
+	/**
+	 * Initializes a new instance of the "AutodiscoverService" class.
+	 * 
+	 * @param url                       The URL of the service.
+	 *
 	 * @throws microsoft.exchange.webservices.data.ArgumentException
 	 */
 	public AutodiscoverService(URI url) throws ArgumentException {
@@ -1824,30 +1870,51 @@ IAutodiscoverRedirectionUrl, IFunctionDelegate {
 
 	/**
 	 * Initializes a new instance of the "AutodiscoverService" class.
-	 * 
-	 * @param url
-	 *            The URL of the service.
-	 * @param requestedServerVersion
-	 *            The requested server version.
+	 *
+	 * @param url                       The URL of the service.
+	 * @param connectionManager         The HttpConnectionManager which should be used by the service.
+	 *
 	 * @throws microsoft.exchange.webservices.data.ArgumentException
 	 */
-	public AutodiscoverService(URI url,
-			ExchangeVersion requestedServerVersion) throws ArgumentException {
+	public AutodiscoverService(URI url, HttpConnectionManager connectionManager) throws ArgumentException {
+		this(url, url.getHost(), connectionManager);
+	}
+
+	/**
+	 * Initializes a new instance of the "AutodiscoverService" class.
+	 *
+	 * @param url                       The URL of the service.
+	 * @param requestedServerVersion    The requested server version.
+	 *
+	 * @throws microsoft.exchange.webservices.data.ArgumentException
+	 */
+	public AutodiscoverService(URI url, ExchangeVersion requestedServerVersion) throws ArgumentException {
 		this(url, url.getHost(), requestedServerVersion);
 	}
 
 	/**
 	 * Initializes a new instance of the "AutodiscoverService" class.
-	 * 
-	 * @param url
-	 *            The URL of the service.
-	 * @param domain
-	 *            The domain that will be used to determine the URL of the
-	 *            service.
+	 *
+	 * @param url                       The URL of the service.
+	 * @param requestedServerVersion    The requested server version.
+	 * @param connectionManager         The HttpConnectionManager which should be used by the service.
+	 *
 	 * @throws microsoft.exchange.webservices.data.ArgumentException
 	 */
-	protected AutodiscoverService(URI url, String domain) 
-	throws ArgumentException {
+	public AutodiscoverService(URI url, ExchangeVersion requestedServerVersion, HttpConnectionManager connectionManager)
+			throws ArgumentException {
+		this(url, url.getHost(), requestedServerVersion, connectionManager);
+	}
+
+	/**
+	 * Initializes a new instance of the "AutodiscoverService" class.
+	 * 
+	 * @param url                       The URL of the service.
+	 * @param domain                    The domain that will be used to determine the URL of the service.
+	 *
+	 * @throws microsoft.exchange.webservices.data.ArgumentException
+	 */
+	protected AutodiscoverService(URI url, String domain) throws ArgumentException {
 		super();
 		EwsUtilities.validateDomainNameAllowNull(domain, "domain");
 		this.url = url;
@@ -1857,18 +1924,33 @@ IAutodiscoverRedirectionUrl, IFunctionDelegate {
 
 	/**
 	 * Initializes a new instance of the "AutodiscoverService" class.
-	 * 
-	 * @param url
-	 *            The URL of the service.
-	 * @param domain
-	 *            The domain that will be used to determine the URL of the
-	 *            service.
-	 * @param requestedServerVersion
-	 *            The requested server version.
+	 *
+	 * @param url                       The URL of the service.
+	 * @param domain                    The domain that will be used to determine the URL of the service.
+	 * @param connectionManager         The HttpConnectionManager which should be used by the service.
+	 *
 	 * @throws microsoft.exchange.webservices.data.ArgumentException
 	 */
-	protected AutodiscoverService(URI url, String domain,
-			ExchangeVersion requestedServerVersion) throws ArgumentException {
+	protected AutodiscoverService(URI url, String domain, HttpConnectionManager connectionManager)
+			throws ArgumentException {
+		super(connectionManager);
+		EwsUtilities.validateDomainNameAllowNull(domain, "domain");
+		this.url = url;
+		this.domain = domain;
+		this.dnsClient = new AutodiscoverDnsClient(this);
+	}
+
+	/**
+	 * Initializes a new instance of the "AutodiscoverService" class.
+	 * 
+	 * @param url                       The URL of the service.
+	 * @param domain                    The domain that will be used to determine the URL of the service.
+	 * @param requestedServerVersion    The requested server version.
+	 *
+	 * @throws microsoft.exchange.webservices.data.ArgumentException
+	 */
+	protected AutodiscoverService(URI url, String domain, ExchangeVersion requestedServerVersion)
+			throws ArgumentException {
 		super(requestedServerVersion);
 		EwsUtilities.validateDomainNameAllowNull(domain, "domain");
 
@@ -1878,12 +1960,31 @@ IAutodiscoverRedirectionUrl, IFunctionDelegate {
 	}
 
 	/**
+	 * Initializes a new instance of the "AutodiscoverService" class.
+	 *
+	 * @param url                       The URL of the service.
+	 * @param domain                    The domain that will be used to determine the URL of the service.
+	 * @param requestedServerVersion    The requested server version.
+	 * @param connectionManager         The HttpConnectionManager which should be used by the service.
+	 *
+	 * @throws microsoft.exchange.webservices.data.ArgumentException
+	 */
+	protected AutodiscoverService(URI url, String domain, ExchangeVersion requestedServerVersion,
+								  HttpConnectionManager connectionManager) throws ArgumentException {
+		super(requestedServerVersion, connectionManager);
+		EwsUtilities.validateDomainNameAllowNull(domain, "domain");
+
+		this.url = url;
+		this.domain = domain;
+		this.dnsClient = new AutodiscoverDnsClient(this);
+	}
+
+	/**
 	 * Initializes a new instance of the AutodiscoverService class.
-	 * @param service The other service.	
-	 * @param requestedServerVersion The requested server version.	
-	 */	
-	protected AutodiscoverService(ExchangeServiceBase service, 
-			ExchangeVersion requestedServerVersion) {
+	 * @param service The other service.
+	 * @param requestedServerVersion The requested server version.
+	 */
+	protected AutodiscoverService(ExchangeServiceBase service, ExchangeVersion requestedServerVersion) {
 		super(service, requestedServerVersion);
 		this.dnsClient = new AutodiscoverDnsClient(this);
 	}

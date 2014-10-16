@@ -15,30 +15,19 @@ import java.io.File;
 import java.io.IOException;
 import java.net.CookieHandler;
 import java.net.CookieManager;
-import java.net.CookiePolicy;
-import java.net.CookieStore;
-import java.net.HttpCookie;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLConnection;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
-import java.util.Dictionary;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.TimeZone;
-import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -106,7 +95,7 @@ public abstract class ExchangeServiceBase {
 
 	private WebProxy webProxy;
 	
-	private HttpConnectionManager simpleHttpConnectionManager = new MultiThreadedHttpConnectionManager(); 
+	private HttpConnectionManager httpConnectionManager;
 	
 	HttpClientWebRequest request = null;
 	
@@ -118,8 +107,8 @@ public abstract class ExchangeServiceBase {
 	 * Static members
 	 */
 
-	protected HttpConnectionManager getSimpleHttpConnectionManager() {
-		return simpleHttpConnectionManager;
+	protected HttpConnectionManager getHttpConnectionManager() {
+		return httpConnectionManager;
 	}
 
 	/** Default UserAgent. */
@@ -128,7 +117,7 @@ public abstract class ExchangeServiceBase {
 
 	protected ExchangeServiceBase(ExchangeServiceBase service,
 			ExchangeVersion requestedServerVersion) {
-		this(requestedServerVersion);
+		this(requestedServerVersion, service.getHttpConnectionManager());
 		this.useDefaultCredentials = service.getUseDefaultCredentials();
 		this.credentials = service.getCredentials();
 		this.traceEnabled = service.isTraceEnabled();
@@ -176,18 +165,30 @@ public abstract class ExchangeServiceBase {
     }
     
 	protected ExchangeServiceBase() {
-		this(TimeZone.getDefault());
+		this(new MultiThreadedHttpConnectionManager());
 	}
 
-	protected ExchangeServiceBase(ExchangeVersion requestedServerVersion, 
-			TimeZone timeZone) {
-		this(timeZone);
+	protected ExchangeServiceBase(HttpConnectionManager connectionManager) {
+		this(TimeZone.getDefault(), connectionManager);
+	}
+
+	protected ExchangeServiceBase(ExchangeVersion requestedServerVersion, TimeZone timeZone) {
+		this(requestedServerVersion, timeZone, new MultiThreadedHttpConnectionManager());
+	}
+
+	protected ExchangeServiceBase(ExchangeVersion requestedServerVersion, TimeZone timeZone, HttpConnectionManager connectionManager) {
+		this(timeZone, connectionManager);
 		this.requestedServerVersion = requestedServerVersion;
 	}
 
-	protected ExchangeServiceBase(TimeZone timeZone){
+	protected ExchangeServiceBase(TimeZone timeZone, HttpConnectionManager connectionManager) {
 		this.timeZone = timeZone;
 		this.setUseDefaultCredentials(true);
+		this.httpConnectionManager = connectionManager;
+	}
+
+	protected ExchangeServiceBase(TimeZone timeZone) {
+		this(timeZone, new MultiThreadedHttpConnectionManager());
 	}
 
 	// Event handlers
@@ -240,7 +241,7 @@ public abstract class ExchangeServiceBase {
 			throw new ServiceLocalException(strErr);
 		}
 
-		 request = new HttpClientWebRequest(this.simpleHttpConnectionManager);
+		 request = new HttpClientWebRequest(this.httpConnectionManager);
 		try {
 			request.setUrl(url.toURL());
 		} catch (MalformedURLException e) {
@@ -621,14 +622,18 @@ public abstract class ExchangeServiceBase {
 	 * @param requestedServerVersion
 	 *            The requested server version.
 	 */
-	protected ExchangeServiceBase(ExchangeVersion requestedServerVersion) {
+	protected ExchangeServiceBase(ExchangeVersion requestedServerVersion, HttpConnectionManager connectionManager) {
 		// Removed because TimeZone class in Java doesn't maintaining the 
 		//history of time change rules for a given time zone
 		//this(requestedServerVersion, TimeZone.getDefault());
 		this.requestedServerVersion = requestedServerVersion;
+		this.httpConnectionManager = connectionManager;
 	}
 
-	
+	protected ExchangeServiceBase(ExchangeVersion requestedServerVersion) {
+		this(requestedServerVersion, new MultiThreadedHttpConnectionManager());
+	}
+
 
 	// Abstract methods
 

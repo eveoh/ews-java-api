@@ -23,6 +23,7 @@ import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.FutureTask;
 
+import org.apache.commons.httpclient.HttpConnectionManager;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
@@ -4173,11 +4174,21 @@ public final class ExchangeService extends ExchangeServiceBase implements
 
 	/**
 	 * Initializes a new instance of the <see cref="ExchangeService"/> class,
+	 * targeting the specified version of EWS and scoped to the to the system's
+	 * current time zone.
+	 *
+	 * @param connectionManager         The HttpConnectionManager which should be used by the service.
+	 */
+	public ExchangeService(HttpConnectionManager connectionManager) {
+		super(connectionManager);
+	}
+
+	/**
+	 * Initializes a new instance of the <see cref="ExchangeService"/> class,
 	 * targeting the specified version of EWS and scoped to the system's current
 	 * time zone.
 	 * 
-	 * @param requestedServerVersion
-	 *            the requested server version
+	 * @param requestedServerVersion    The version of EWS that the service targets.
 	 */
 	public ExchangeService(ExchangeVersion requestedServerVersion) {
 		super(requestedServerVersion);
@@ -4185,17 +4196,40 @@ public final class ExchangeService extends ExchangeServiceBase implements
 
 	/**
 	 * Initializes a new instance of the <see cref="ExchangeService"/> class,
+	 * targeting the specified version of EWS and scoped to the system's current
+	 * time zone.
+	 *
+	 * @param requestedServerVersion    The version of EWS that the service targets.
+	 * @param connectionManager         The HttpConnectionManager which should be used by the service.
+	 */
+	public ExchangeService(ExchangeVersion requestedServerVersion, HttpConnectionManager connectionManager) {
+		super(requestedServerVersion, connectionManager);
+	}
+
+	/**
+	 * Initializes a new instance of the <see cref="ExchangeService"/> class,
 	 * targeting the specified version of EWS and scoped to the to the specified
 	 * time zone.
 	 * 
-	 * @param requestedServerVersion
-	 *            The version of EWS that the service targets.
-	 * @param timeZone
-	 *            The time zone to which the service is scoped.
+	 * @param requestedServerVersion    The version of EWS that the service targets.
+	 * @param timeZone                  The time zone to which the service is scoped.
 	 */
-	public ExchangeService(ExchangeVersion requestedServerVersion,
-			TimeZone timeZone) {
+	public ExchangeService(ExchangeVersion requestedServerVersion, TimeZone timeZone) {
 		super(requestedServerVersion, timeZone);
+	}
+
+	/**
+	 * Initializes a new instance of the <see cref="ExchangeService"/> class,
+	 * targeting the specified version of EWS and scoped to the to the specified
+	 * time zone.
+	 *
+	 * @param requestedServerVersion    The version of EWS that the service targets.
+	 * @param timeZone                  The time zone to which the service is scoped.
+	 * @param connectionManager         The HttpConnectionManager which should be used by the service.
+	 */
+	public ExchangeService(ExchangeVersion requestedServerVersion, TimeZone timeZone,
+						   HttpConnectionManager connectionManager) {
+		super(requestedServerVersion, timeZone, connectionManager);
 	}
 
 	// Utilities
