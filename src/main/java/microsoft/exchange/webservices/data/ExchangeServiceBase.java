@@ -27,7 +27,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.net.*;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -684,7 +686,6 @@ public abstract class ExchangeServiceBase implements Closeable {
   public void setCredentials(ExchangeCredentials credentials) {
     this.credentials = credentials;
     this.useDefaultCredentials = false;
-    CookieHandler.setDefault(new CookieManager());
   }
 
   /**
@@ -710,7 +711,6 @@ public abstract class ExchangeServiceBase implements Closeable {
     this.useDefaultCredentials = value;
     if (value) {
       this.credentials = null;
-      CookieHandler.setDefault(null);
     }
   }
 
