@@ -6,7 +6,7 @@
 
     <groupId>com.microsoft.office</groupId>
     <artifactId>ews-java-api</artifactId>
-    <version>1.3-eveoh1</version>
+    <version>1.3-eveoh2</version>
     <packaging>bundle</packaging>
 
     <name>Exchange Web Services Java API</name>
