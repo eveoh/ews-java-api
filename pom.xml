@@ -4,10 +4,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.microsoft.office</groupId>
+    <groupId>com.microsoft.ewsjavaapi</groupId>
     <artifactId>ews-java-api</artifactId>
-    <version>1.3-eveoh1</version>
-    <packaging>bundle</packaging>
+    
+    <version>2.0-eveoh1</version>
 
     <name>Exchange Web Services Java API</name>
     <description>Exchange Web Services (EWS) Java API</description>
@@ -34,7 +34,56 @@
             should probably be UTF-8 nowadays. -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <javaLanguage.version>1.6</javaLanguage.version>
+        <javadoc.doclint.param/>
     </properties>
+
+    <profiles>
+        <profile>
+            <!-- handle broken builds on jdk1.8 due to doclint function -->
+            <id>default-jdk18-profile</id>
+            <activation>
+                <jdk>[1.8,)</jdk>
+            </activation>
+            <properties>
+                <javadoc.doclint.param>-Xdoclint:none</javadoc.doclint.param>
+            </properties>
+        </profile>
+    </profiles>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <issueManagement>
+        <url>https://github.com/OfficeDev/ews-java-api/issues</url>
+        <system>GitHub Issues</system>
+    </issueManagement>
+
+    <ciManagement>
+        <system>travis</system>
+        <url>https://travis-ci.org/OfficeDev/ews-java-api</url>
+    </ciManagement>
+
+    <scm>
+        <url>https://github.com/OfficeDev/ews-java-api</url>
+        <connection>scm:git:ssh://git@github.com:OfficeDev/ews-java-api.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com:OfficeDev/ews-java-api.git</developerConnection>
+    </scm>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
+        </repository>
+    </distributionManagement>
 
     <dependencies>
         <dependency>
@@ -56,15 +105,9 @@
         </dependency>
 
         <dependency>
-            <groupId>jcifs</groupId>
-            <artifactId>jcifs</artifactId>
-            <version>1.3.17</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>javax.servlet</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>2.7</version>
         </dependency>
 
         <dependency>
@@ -84,9 +127,21 @@
 
     <build>
         <plugins>
+            <!-- Deployment / build plugins -->
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.6.5</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <!-- Ref.: http://books.sonatype.com/nexus-book/reference/staging-deployment.html -->
+                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.2</version>
                 <configuration>
                     <encoding>${project.build.sourceEncoding}</encoding>
                     <source>${javaLanguage.version}</source>
@@ -106,11 +161,6 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>2.4.0</version>
-                <extensions>true</extensions>
-            </plugin>
         </plugins>
         <!-- Used to bump all of the various core plugins up to Maven current.
             Use this in conjunction with the versions-maven-plugin to keep your Maven
@@ -157,9 +207,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.9.1</version>
+                <version>2.10.1</version>
                 <configuration>
                     <linksource>true</linksource>
+                    <additionalparam>${javadoc.doclint.param}</additionalparam>
                 </configuration>
             </plugin>
 
