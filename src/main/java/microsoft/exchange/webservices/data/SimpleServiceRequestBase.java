@@ -37,32 +37,22 @@ abstract class SimpleServiceRequestBase extends ServiceRequestBase {
    * Executes this request.
    *
    * @throws Exception
-   * @throws microsoft.exchange.webservices.data.ServiceLocalException
    */
-  protected Object internalExecute() throws ServiceLocalException, Exception {
-    HttpWebRequest response = null;
+  protected Object internalExecute() throws Exception {
+    HttpWebRequest request = null;
 
     try {
-      response = this.validateAndEmitRequest();
-      return this.readResponse(response);
-    } catch (IOException ex) {
-      // Wrap exception.
-      throw new ServiceRequestException(String.
-          format(Strings.ServiceRequestFailed, ex.getMessage(), ex));
+      request = this.validateAndEmitRequest();
+      return this.readResponse(request);
     } catch (Exception e) {
-      if (response != null) {
-        this.getService().processHttpResponseHeaders(TraceFlags.
-            EwsResponseHttpHeaders, response);
-      }
-
       throw new ServiceRequestException(String.format(Strings.ServiceRequestFailed, e.getMessage()), e);
     } finally {
-      try {
-        if (response != null) {
-          response.close();
+      if (request != null) {
+        try {
+          request.close();
+        } catch (Exception e) {
+          // Ignore exceptions while closing the request.
         }
-      } catch (Exception e2) {
-        response = null;
       }
     }
   }
