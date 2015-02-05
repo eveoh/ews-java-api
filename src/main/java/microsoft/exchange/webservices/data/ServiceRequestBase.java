@@ -624,7 +624,11 @@ abstract class ServiceRequestBase {
     try {
       return this.getEwsHttpWebResponse(request);
     } catch (HttpErrorException e) {
-      processWebException(e, request);
+      try {
+        processWebException(e, request);
+      } finally {
+        request.close();
+      }
 
       // Wrap exception if the above code block didn't throw
       throw new ServiceRequestException(String.format(Strings.ServiceRequestFailed, e.getMessage()), e);
