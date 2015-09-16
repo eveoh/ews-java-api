@@ -30,12 +30,15 @@ import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
 
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import java.io.ByteArrayOutputStream;
@@ -137,6 +140,8 @@ public abstract class ExchangeServiceBase implements Closeable {
 
   protected HttpClientWebRequest request = null;
 
+  private SSLConnectionSocketFactory sslConnectionSocketFactory;
+
   // protected static HttpStatusCode AccountIsLocked = (HttpStatusCode)456;
 
   /**
@@ -152,7 +157,6 @@ public abstract class ExchangeServiceBase implements Closeable {
    */
   protected ExchangeServiceBase() {
     setUseDefaultCredentials(true);
-    initializeHttpClient();
     initializeHttpContext();
   }
 
@@ -173,29 +177,30 @@ public abstract class ExchangeServiceBase implements Closeable {
     this.userAgent = service.getUserAgent();
     this.acceptGzipEncoding = service.getAcceptGzipEncoding();
     this.httpHeaders = service.getHttpHeaders();
+    this.sslConnectionSocketFactory = service.getSslConnectionSocketFactory();
   }
 
-  private void initializeHttpClient() {
-    EwsSSLProtocolSocketFactory factory;
-    try {
-      factory = EwsSSLProtocolSocketFactory.build(null);
-    } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException("Could not initialize HttpClientConnectionManager.", e);
-    } catch (KeyStoreException e) {
-      throw new RuntimeException("Could not initialize HttpClientConnectionManager.", e);
-    } catch (KeyManagementException e) {
-      throw new RuntimeException("Could not initialize HttpClientConnectionManager.", e);
+  private CloseableHttpClient getHttpClient() {
+    if (httpClient == null) {
+      Registry<ConnectionSocketFactory>
+          registry =
+          RegistryBuilder.<ConnectionSocketFactory>create()
+              .register("http", new PlainConnectionSocketFactory()).register("https",
+                                                                             sslConnectionSocketFactory
+                                                                             != null
+                                                                             ? sslConnectionSocketFactory
+                                                                             : SSLConnectionSocketFactory
+                                                                                 .getSocketFactory()).build();
+
+      HttpClientConnectionManager httpConnectionManager = new BasicHttpClientConnectionManager(registry);
+      HttpClientBuilder
+          httpClientBuilder =
+          HttpClients.custom().setConnectionManager(httpConnectionManager)
+              .setTargetAuthenticationStrategy(new CookieProcessingTargetAuthenticationStrategy());
+      httpClient = httpClientBuilder.build();
     }
 
-    Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
-        .register("http", new PlainConnectionSocketFactory())
-        .register("https", factory)
-        .build();
-
-    HttpClientConnectionManager httpConnectionManager = new BasicHttpClientConnectionManager(registry);
-    HttpClientBuilder httpClientBuilder = HttpClients.custom().setConnectionManager(httpConnectionManager)
-        .setTargetAuthenticationStrategy(new CookieProcessingTargetAuthenticationStrategy());
-    httpClient = httpClientBuilder.build();
+    return httpClient;
   }
 
   private void initializeHttpContext() {
@@ -255,7 +260,7 @@ public abstract class ExchangeServiceBase implements Closeable {
       throw new ServiceLocalException(strErr);
     }
 
-    request = new HttpClientWebRequest(httpClient, httpContext);
+    request = new HttpClientWebRequest(getHttpClient(), httpContext);
     try {
       request.setUrl(url.toURL());
     } catch (MalformedURLException e) {
@@ -846,5 +851,13 @@ public abstract class ExchangeServiceBase implements Closeable {
 
       return ExchangeServiceBase.binarySecret;
     }
+  }
+
+  public SSLConnectionSocketFactory getSslConnectionSocketFactory() {
+    return sslConnectionSocketFactory;
+  }
+
+  public void setSslConnectionSocketFactory(SSLConnectionSocketFactory sslConnectionSocketFactory) {
+    this.sslConnectionSocketFactory = sslConnectionSocketFactory;
   }
 }
