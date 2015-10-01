@@ -20,31 +20,36 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
- 
-package microsoft.exchange.webservices.data.property.complex;
 
-import microsoft.exchange.webservices.data.property.complex.time.OlsonTimeZoneDefinition;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+package microsoft.exchange.webservices.data;
 
+
+import microsoft.exchange.webservices.data.util.TimeZoneUtils;
+
+import java.util.Date;
 import java.util.TimeZone;
 
-@RunWith(JUnit4.class)
-public class OlsonTimeZoneTest {
+/**
+ * A TimeZoneDefinition class that allows mapping from a Java/Olson TimeZone to a MS TimeZone.
+ */
+public class OlsonTimeZoneDefinition extends TimeZoneDefinition {
 
-  @Test
-  public void testOlsonTimeZoneConversion() {
-    final String[] timeZoneIds = TimeZone.getAvailableIDs();
-    for (String timeZoneId : timeZoneIds) {
-      if(timeZoneId.startsWith("America") || timeZoneId.startsWith("Europe") || timeZoneId.startsWith("Africa")) {
-        //there are a few timezones that are out of date or don't have direct microsoft mappings according to the Unicode source we use so we will only test Americas, Europe and Africa
-        final OlsonTimeZoneDefinition olsonTimeZone = new OlsonTimeZoneDefinition(TimeZone.getTimeZone(timeZoneId));
-        Assert.assertNotNull(olsonTimeZone.getId());
-      }
-
+  /**
+   * Create a TimeZoneDefinition compatible with java.util.TimeZone
+   * @param timeZone a java time zone object, will be converted to Microsoft timezone.
+   */
+  public OlsonTimeZoneDefinition(TimeZone timeZone) {
+    final String microsoftTimeZoneName = TimeZoneUtils.getMicrosoftTimeZoneName(timeZone);
+    if (microsoftTimeZoneName != null) {
+      this.id = microsoftTimeZoneName;
     }
+    this.name = timeZone.getDisplayName(timeZone.inDaylightTime(new Date()), TimeZone.LONG);
+  }
 
+  @Override
+  public void validate() throws ServiceLocalException {
+    if (this.id == null) {
+      throw new ServiceLocalException("Invalid TimeZone (" + this.name + ") Specified");
+    }
   }
 }
