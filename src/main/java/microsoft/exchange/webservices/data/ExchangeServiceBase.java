@@ -134,7 +134,7 @@ public abstract class ExchangeServiceBase implements Closeable {
 
   private WebProxy webProxy;
 
-  protected CloseableHttpClient httpClient;
+  private CloseableHttpClient httpClient;
 
   protected HttpClientContext httpContext;
 
@@ -180,7 +180,7 @@ public abstract class ExchangeServiceBase implements Closeable {
     this.sslConnectionSocketFactory = service.getSslConnectionSocketFactory();
   }
 
-  private CloseableHttpClient getHttpClient() {
+  protected CloseableHttpClient getHttpClient() {
     if (httpClient == null) {
       Registry<ConnectionSocketFactory>
           registry =
