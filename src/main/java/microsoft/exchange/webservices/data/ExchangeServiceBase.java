@@ -217,11 +217,14 @@ public abstract class ExchangeServiceBase implements Closeable {
 
     @Override
   public void close() {
-    try {
-      httpClient.close();
-    } catch (IOException e) {
-      // Ignore exceptions while closing the HttpClient.
-    }
+      if (httpClient != null) {
+        try {
+          httpClient.close();
+        } catch (IOException e) {
+          // Ignore exceptions while closing the HttpClient.
+        }
+        httpClient = null;
+      }
   }
 
   // Event handlers
