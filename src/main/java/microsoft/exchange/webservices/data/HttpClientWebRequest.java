@@ -26,6 +26,7 @@ package microsoft.exchange.webservices.data;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
+import org.apache.http.auth.AuthProtocolState;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.NTCredentials;
 import org.apache.http.client.CredentialsProvider;
@@ -147,6 +148,14 @@ class HttpClientWebRequest extends HttpWebRequest {
     }
 
     httpContext.setCredentialsProvider(credentialsProvider);
+
+    // Reset auth state is authentication previously failed, otherwise we will keep failing,
+    // as HttpClient does not retry authentication once it has failed
+    // See eveoh/mytimetable#2088
+    if (httpContext.getTargetAuthState() != null &&
+        httpContext.getTargetAuthState().getState() == AuthProtocolState.FAILURE) {
+      httpContext.getTargetAuthState().reset();
+    }
 
     httpPost.setConfig(requestConfigBuilder.build());
   }
