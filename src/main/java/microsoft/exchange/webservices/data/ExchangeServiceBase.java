@@ -24,6 +24,7 @@
 package microsoft.exchange.webservices.data;
 
 import org.apache.http.client.CookieStore;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
@@ -37,10 +38,9 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
 
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
@@ -48,15 +48,15 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.text.DateFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Date;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.TimeZone;
 
 /**
  * Represents an abstract binding to an Exchange Service.
@@ -193,10 +193,15 @@ public abstract class ExchangeServiceBase implements Closeable {
                                                                                  .getSocketFactory()).build();
 
       HttpClientConnectionManager httpConnectionManager = new BasicHttpClientConnectionManager(registry);
+      RequestConfig
+          requestConfig =
+          RequestConfig.custom().setConnectionRequestTimeout(300000).setConnectTimeout(3000000)
+              .setSocketTimeout(300000).build();
       HttpClientBuilder
           httpClientBuilder =
           HttpClients.custom().setConnectionManager(httpConnectionManager)
-              .setTargetAuthenticationStrategy(new CookieProcessingTargetAuthenticationStrategy());
+              .setTargetAuthenticationStrategy(new CookieProcessingTargetAuthenticationStrategy())
+              .setDefaultRequestConfig(requestConfig);
 
       if (!acceptGzipEncoding) {
         httpClientBuilder.disableContentCompression();
