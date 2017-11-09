@@ -23,15 +23,22 @@
 
 package microsoft.exchange.webservices.data;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import javax.xml.stream.XMLStreamException;
-import java.io.*;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.List;
 
 /**
  * Represents a binding to the Exchange Autodiscover Service.
@@ -39,9 +46,6 @@ import java.util.*;
 public final class AutodiscoverService extends ExchangeServiceBase implements
     IAutodiscoverRedirectionUrl, IFunctionDelegate {
 
-  private static final Log log = LogFactory.getLog(AutodiscoverService.class);
-
-  // region Private members
   /**
    * The domain.
    */
@@ -78,98 +82,56 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    */
   private boolean enableScpLookup = true;
 
-  // Autodiscover legacy path
   /**
-   * The Constant AutodiscoverLegacyPath.
+   * Autodiscover legacy path
    */
   private static final String AutodiscoverLegacyPath =
       "/autodiscover/autodiscover.xml";
 
-  // Autodiscover legacy HTTPS Url
   /**
-   * The Constant AutodiscoverLegacyHttpsUrl.
+   * Autodiscover legacy HTTPS Url
    */
   private static final String AutodiscoverLegacyHttpsUrl = "https://%s" +
       AutodiscoverLegacyPath;
-  // Autodiscover legacy HTTP Url
+
   /**
-   * The Constant AutodiscoverLegacyHttpUrl.
+   * Autodiscover legacy HTTP Url
    */
   private static final String AutodiscoverLegacyHttpUrl = "http://%s" +
       AutodiscoverLegacyPath;
-  // Autodiscover SOAP HTTPS Url
+
   /**
-   * The Constant AutodiscoverSoapHttpsUrl.
+   * Autodiscover SOAP HTTPS Url
    */
   private static final String AutodiscoverSoapHttpsUrl =
       "https://%s/autodiscover/autodiscover.svc";
-  // Autodiscover SOAP WS-Security HTTPS Url
-  /**
-   * The Constant AutodiscoverSoapWsSecurityHttpsUrl.
-   */
-  private static final String AutodiscoverSoapWsSecurityHttpsUrl =
-      AutodiscoverSoapHttpsUrl +
-          "/wssecurity";
 
   /**
-   * Autodiscover SOAP WS-Security symmetrickey HTTPS Url
-   */
-  private static final String AutodiscoverSoapWsSecuritySymmetricKeyHttpsUrl =
-      AutodiscoverSoapHttpsUrl + "/wssecurity/symmetrickey";
-
-  /**
-   * Autodiscover SOAP WS-Security x509cert HTTPS Url
-   */
-  private static final String AutodiscoverSoapWsSecurityX509CertHttpsUrl =
-      AutodiscoverSoapHttpsUrl + "/wssecurity/x509cert";
-
-
-  // Autodiscover request namespace
-  /**
-   * The Constant AutodiscoverRequestNamespace.
+   * Autodiscover request namespace
    */
   private static final String AutodiscoverRequestNamespace =
       "http://schemas.microsoft.com/exchange/autodiscover/" +
           "outlook/requestschema/2006";
-  // Maximum number of Url (or address) redirections that will be followed by
-  // an Autodiscover call
+
   /**
-   * The Constant AutodiscoverMaxRedirections.
+   * Maximum number of Url (or address) redirections that will be followed by an Autodiscover call
    */
-  protected static final int AutodiscoverMaxRedirections = 10;
-  // HTTP header indicating that SOAP Autodiscover service is enabled.
+  private static final int AutodiscoverMaxRedirections = 10;
+
   /**
-   * The Constant AutodiscoverSoapEnabledHeaderName.
+   * HTTP header indicating that SOAP Autodiscover service is enabled.
    */
   private static final String AutodiscoverSoapEnabledHeaderName =
       "X-SOAP-Enabled";
-  // HTTP header indicating that WS-Security Autodiscover service is enabled.
+
   /**
-   * The Constant AutodiscoverWsSecurityEnabledHeaderName.
+   * HTTP header indicating that WS-Security Autodiscover service is enabled.
    */
   private static final String AutodiscoverWsSecurityEnabledHeaderName =
       "X-WSSecurity-Enabled";
 
-
   /**
-   * HTTP header indicating that WS-Security/SymmetricKey Autodiscover service is enabled.
-   */
-
-  private static final String AutodiscoverWsSecuritySymmetricKeyEnabledHeaderName =
-      "X-WSSecurity-SymmetricKey-Enabled";
-
-
-  /**
-   * HTTP header indicating that WS-Security/X509Cert Autodiscover service is enabled.
-   */
-
-  private static final String AutodiscoverWsSecurityX509CertEnabledHeaderName =
-      "X-WSSecurity-X509Cert-Enabled";
-
-
-  // Minimum request version for Autodiscover SOAP service.
-  /**
-   * The Constant MinimumRequestVersionForAutoDiscoverSoapService.
+   * Minimum request version for Autodiscover SOAP service.
    */
   private static final ExchangeVersion
       MinimumRequestVersionForAutoDiscoverSoapService =
@@ -221,8 +183,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
       this.traceHttpRequestHeaders(
           TraceFlags.AutodiscoverRequestHttpHeaders,
           request);
-      // OutputStreamWriter out = new
-      // OutputStreamWriter(request.getOutputStream());
       OutputStream urlOutStream = request.getOutputStream();
 
       // If tracing is enabled, we generate the request in-memory so that we
@@ -236,8 +196,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
         writer.flush();
 
         this.traceXml(TraceFlags.AutodiscoverRequest, memoryStream);
-        // out.write(memoryStream.toString());
-        // out.close();
         memoryStream.writeTo(urlOutStream);
         urlOutStream.flush();
         urlOutStream.close();
@@ -246,11 +204,9 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
         PrintWriter writer = new PrintWriter(urlOutStream);
         this.writeLegacyAutodiscoverRequest(emailAddress, settings, writer);
 
-      /*  Flush Start */
         writer.flush();
         urlOutStream.flush();
         urlOutStream.close();
-      /* Flush End */
       }
       request.executeRequest();
       request.getResponseCode();
@@ -262,11 +218,9 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
         return settings;
       }
       InputStream serviceResponseStream = request.getInputStream();
-      // If tracing is enabled, we read the entire response into a
-      // MemoryStream so that we
+      // If tracing is enabled, we read the entire response into a MemoryStream so that we
       // can pass it along to the ITraceListener. Then we parse the response
-      // from the
-      // MemoryStream.
+      // from the MemoryStream.
       if (this.isTraceEnabledFor(TraceFlags.AutodiscoverResponse)) {
         ByteArrayOutputStream memoryStream = new ByteArrayOutputStream();
 
@@ -298,8 +252,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
       if (request != null) {
         try {
           request.close();
-        } catch (Exception e2) {
-          // Ignore exceptions while closing the request.
+        } catch (Exception ignored) {
         }
       }
     }
@@ -385,8 +338,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
       if (request != null) {
         try {
           request.close();
-        } catch (Exception e) {
-          // Ignore exceptions when closing the request
+        } catch (Exception ignored) {
         }
       }
     }
@@ -454,13 +406,8 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * @return The requested configuration settings.
    * @throws Exception the exception
    */
-  protected <TSettings extends ConfigurationSettingsBase>
-  TSettings getLegacyUserSettings(
-      Class<TSettings> cls, String emailAddress) throws Exception {
-                /*int currentHop = 1;
-		return this.internalGetConfigurationSettings(cls, emailAddress,
-				currentHop);*/
-
+  private <TSettings extends ConfigurationSettingsBase>
+  TSettings getLegacyUserSettings(Class<TSettings> cls, String emailAddress) throws Exception {
     // If Url is specified, call service directly.
     if (this.url != null) {
       // this.Uri is intended for Autodiscover SOAP service, convert to Legacy endpoint URL.
@@ -517,10 +464,8 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
     }
 
     // Assume caller is not inside the Intranet, regardless of whether SCP
-    // Urls
-    // were returned or not. SCP Urls are only relevent if one of them
-    // returns
-    // valid Autodiscover settings.
+    // Urls were returned or not. SCP Urls are only relevent if one of them
+    // returns valid Autodiscover settings.
     this.isExternal = true;
 
     int currentUrlIndex = 0;
@@ -646,32 +591,12 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
         // The content at the URL wasn't a valid response, let's try the next.
         currentUrlIndex++;
       } catch (Exception ex) {
-        HttpWebRequest response = null;
-        URI redirectUrl;
-        OutParam<URI> outParam1 = new OutParam<URI>();
-        if ((response != null) &&
-            this.tryGetRedirectionResponse(response, outParam1)) {
-          redirectUrl = outParam1.getParam();
-          this.traceMessage(TraceFlags.AutodiscoverConfiguration,
-              String.format(
-                  "Host returned a redirection to url %s",
-                  redirectUrl.toString()));
+        this.traceMessage(TraceFlags.AutodiscoverConfiguration,
+            String.format("%s failed: %s (%s)", url, ex
+                .getClass().getName(), ex.getMessage()));
 
-          currentHop.setParam(currentHop.getParam() + 1);
-          urls.add(currentUrlIndex, redirectUrl);
-        } else {
-          if (response != null) {
-            this.processHttpErrorResponse(response, ex);
-
-          }
-
-          this.traceMessage(TraceFlags.AutodiscoverConfiguration,
-              String.format("%s failed: %s (%s)", url, ex
-                  .getClass().getName(), ex.getMessage()));
-
-          // The url did not work, let's try the next.
-          currentUrlIndex++;
-        }
+        // The url did not work, let's try the next.
+        currentUrlIndex++;
       }
     } while (currentUrlIndex < urls.size());
 
@@ -800,7 +725,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
                       emailAddress,
                       redirectionEmailAddresses,
                       outParam));
-              currentHop = outParam.getParam();
               return true;
             case RedirectUrl:
               try {
@@ -852,36 +776,13 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
                   redirectionUrl, ex.getMessage()));
           return false;
         } catch (Exception ex) {
-          // TODO: BUG response is always null
-          HttpWebRequest response = null;
-          OutParam<URI> outParam = new OutParam<URI>();
-          if ((response != null)
-              && this.tryGetRedirectionResponse(response,
-              outParam)) {
-            redirectionUrl = outParam.getParam();
-            this
-                .traceMessage(
-                    TraceFlags.AutodiscoverConfiguration,
-                    String
-                        .format(
-                            "Host returned a " +
-                                "redirection" +
-                                " to url %s",
-                            redirectionUrl));
-
-          } else {
-            if (response != null) {
-              this.processHttpErrorResponse(response, ex);
-            }
-
-            this
-                .traceMessage(
-                    TraceFlags.AutodiscoverConfiguration,
-                    String.format("%s failed: %s (%s)",
-                        url, ex.getClass().getName(),
-                        ex.getMessage()));
-            return false;
-          }
+          this
+              .traceMessage(
+                  TraceFlags.AutodiscoverConfiguration,
+                  String.format("%s failed: %s (%s)",
+                      url, ex.getClass().getName(),
+                      ex.getMessage()));
+          return false;
         }
       }
     }
@@ -915,16 +816,8 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * @param requestedSettings The requested settings.
    * @return GetUserSettingsResponse
    */
-  protected GetUserSettingsResponse internalGetLegacyUserSettings(
-      String emailAddress,
+  private GetUserSettingsResponse internalGetLegacyUserSettings(String emailAddress,
       List<UserSettingName> requestedSettings) throws Exception {
-    // Cannot call legacy Autodiscover service with WindowsLive credentials
-    	    	   	
-        /*if ((this.getCredentials() != null) && (this.getCredentials() instanceof WindowsLiveCredentials)) {
-            throw new AutodiscoverLocalException(
-					Strings.WLIDCredentialsCannotBeUsedWithLegacyAutodiscover);
-        }*/
-
     // Cannot call legacy Autodiscover service with WindowsLive and other WSSecurity-based credentials
     if ((this.getCredentials() != null) && (this.getCredentials() instanceof WSSecurityBasedCredentials)) {
       throw new AutodiscoverLocalException(Strings.WLIDCredentialsCannotBeUsedWithLegacyAutodiscover);
@@ -947,8 +840,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * @param requestedSettings The requested settings.
    * @return GetUserSettingsResponse
    */
-  protected GetUserSettingsResponse internalGetSoapUserSettings(
-      String smtpAddress,
+  private GetUserSettingsResponse internalGetSoapUserSettings(String smtpAddress,
       List<UserSettingName> requestedSettings) throws Exception {
     List<String> smtpAddresses = new ArrayList<String>();
     smtpAddresses.add(smtpAddress);
@@ -1008,8 +900,8 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * @return GetUserSettingsResponseCollection Object.
    * @throws Exception the exception
    */
-  protected GetUserSettingsResponseCollection getUserSettings(
-      final List<String> smtpAddresses, List<UserSettingName> settings)
+  private GetUserSettingsResponseCollection getUserSettings(final List<String> smtpAddresses,
+      List<UserSettingName> settings)
       throws Exception {
     EwsUtilities.validateParam(smtpAddresses, "smtpAddresses");
     EwsUtilities.validateParam(settings, "settings");
@@ -1229,9 +1121,8 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * @return GetDomainSettingsResponse collection.
    * @throws Exception the exception
    */
-  protected GetDomainSettingsResponseCollection getDomainSettings(
-      final List<String> domains, List<DomainSettingName> settings,
-      ExchangeVersion requestedVersion)
+  private GetDomainSettingsResponseCollection getDomainSettings(final List<String> domains,
+      List<DomainSettingName> settings, ExchangeVersion requestedVersion)
       throws Exception {
     EwsUtilities.validateParam(domains, "domains");
     EwsUtilities.validateParam(settings, "settings");
@@ -1332,10 +1223,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
       // available.
       if ((!endpoints.contains(AutodiscoverEndpoints.Soap)) &&
           (!endpoints.contains(
-              AutodiscoverEndpoints.WsSecurity))
-        // (endpoints .contains( AutodiscoverEndpoints.WSSecuritySymmetricKey) ) &&
-        //(endpoints .contains( AutodiscoverEndpoints.WSSecurityX509Cert))
-          ) {
+              AutodiscoverEndpoints.WsSecurity))) {
         this
             .traceMessage(
                 TraceFlags.AutodiscoverConfiguration,
@@ -1348,62 +1236,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
         return false;
       }
 
-      // If we have WLID credentials, make sure that we have a WS-Security
-      // endpoint
-			/*
-			if (this.getCredentials() instanceof WindowsLiveCredentials) {
-				if (endpoints.contains(AutodiscoverEndpoints.WsSecurity)) {
-					this
-							.traceMessage(
-									TraceFlags.AutodiscoverConfiguration,
-									String
-											.format(
-													"No Autodiscover " +
-													"WS-Security " +
-													"endpoint is available" +
-													" for host %s",
-													host));
-
-					return false;
-				} else {
-					url.setParam(new URI(String.format(
-							AutodiscoverSoapWsSecurityHttpsUrl, host)));
-				}
-			}
-			   else if (this.getCredentials() instanceof PartnerTokenCredentials)
-                {
-                    if (endpoints.contains( AutodiscoverEndpoints.WSSecuritySymmetricKey))
-                    {
-                        this.traceMessage(
-                            TraceFlags.AutodiscoverConfiguration,
-                            String.format("No Autodiscover WS-Security/SymmetricKey endpoint is available for host {0}", host));
-
-                        return false;
-                    }
-                    else
-                    {
-                        url.setParam( new URI(String.format(AutodiscoverSoapWsSecuritySymmetricKeyHttpsUrl, host)));
-                    }
-                }
-                else if (this.getCredentials()instanceof X509CertificateCredentials)
-                {
-                    if ((endpoints.contains(AutodiscoverEndpoints.WSSecurityX509Cert))
-                    {
-                        this.traceMessage(
-                            TraceFlags.AutodiscoverConfiguration,
-                            String.format("No Autodiscover WS-Security/X509Cert endpoint is available for host {0}", host));
-
-                        return false;
-                    }
-                    else
-                    {
-                        url.setParam( new URI(String.format(AutodiscoverSoapWsSecurityX509CertHttpsUrl, host)));
-                    }
-                }
-				  */
       return true;
-
-
     } else {
       this
           .traceMessage(
@@ -1426,8 +1259,8 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * @return List of Autodiscover URLs.
    * @throws java.net.URISyntaxException the URI Syntax exception
    */
-  protected List<URI> getAutodiscoverServiceUrls(String domainName,
-      OutParam<Integer> scpHostCount) throws URISyntaxException {
+  private List<URI> getAutodiscoverServiceUrls(String domainName, OutParam<Integer> scpHostCount)
+      throws URISyntaxException {
     List<URI> urls;
 
     urls = new ArrayList<URI>();
@@ -1452,8 +1285,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * @throws java.net.URISyntaxException the uRI syntax exception
    * @throws ClassNotFoundException      the class not found exception
    */
-  protected List<String> getAutodiscoverServiceHosts(String domainName,
-      OutParam<Integer> outParam) throws URISyntaxException,
+  private List<String> getAutodiscoverServiceHosts(String domainName, OutParam<Integer> outParam) throws URISyntaxException,
       ClassNotFoundException {
 
     List<URI> urls = this.getAutodiscoverServiceUrls(domainName, outParam);
@@ -1566,22 +1398,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
             AutodiscoverWsSecurityEnabledHeaderName).isEmpty())) {
       endpoints.add(AutodiscoverEndpoints.WsSecurity);
     }
-		
-		/* if (! (request.getResponseHeaders().get(
-				 AutodiscoverWsSecuritySymmetricKeyEnabledHeaderName) !=null || request
-				 .getResponseHeaders().get(
-				 AutodiscoverWsSecuritySymmetricKeyEnabledHeaderName).isEmpty()))
-         {
-             endpoints .add( AutodiscoverEndpoints.WSSecuritySymmetricKey);
-         }
-         if (!(request.getResponseHeaders().get(
-        		 AutodiscoverWsSecurityX509CertEnabledHeaderName)!=null ||
-        		 request.getResponseHeaders().get(
-                		 AutodiscoverWsSecurityX509CertEnabledHeaderName).isEmpty()))
-        		 
-         {
-             endpoints .add(AutodiscoverEndpoints.WSSecurityX509Cert);
-         }*/
 
     return endpoints;
   }
@@ -1595,8 +1411,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * @throws java.io.IOException                                  Signals that an I/O exception has occurred.
    * @throws microsoft.exchange.webservices.data.EWSHttpException the eWS http exception
    */
-  protected void traceResponse(HttpWebRequest request,
-      ByteArrayOutputStream memoryStream) throws XMLStreamException,
+  void traceResponse(HttpWebRequest request, ByteArrayOutputStream memoryStream) throws XMLStreamException,
       IOException, EWSHttpException {
     this.processHttpResponseHeaders(
         TraceFlags.AutodiscoverResponseHttpHeaders, request);
@@ -1624,11 +1439,9 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * @throws ServiceLocalException       the service local exception
    * @throws java.net.URISyntaxException the uRI syntax exception
    */
-  protected HttpWebRequest prepareHttpWebRequestForUrl(URI url)
+  HttpWebRequest prepareHttpWebRequestForUrl(URI url)
       throws ServiceLocalException, URISyntaxException {
-    return this.prepareHttpWebRequestForUrl(url, false,
-        // acceptGzipEncoding
-        false); // allowAutoRedirect
+    return this.prepareHttpWebRequestForUrl(url, false,false);
   }
 
   /**
@@ -1751,7 +1564,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    *               service.
    * @throws microsoft.exchange.webservices.data.ArgumentException
    */
-  protected AutodiscoverService(URI url, String domain)
+  private AutodiscoverService(URI url, String domain)
       throws ArgumentException {
     super();
     EwsUtilities.validateDomainNameAllowNull(domain, "domain");
@@ -1769,8 +1582,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * @param requestedServerVersion The requested server version.
    * @throws microsoft.exchange.webservices.data.ArgumentException
    */
-  protected AutodiscoverService(URI url, String domain,
-      ExchangeVersion requestedServerVersion) throws ArgumentException {
+  private AutodiscoverService(URI url, String domain, ExchangeVersion requestedServerVersion) throws ArgumentException {
     super(requestedServerVersion);
     EwsUtilities.validateDomainNameAllowNull(domain, "domain");
 
@@ -1785,8 +1597,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * @param service                The other service.
    * @param requestedServerVersion The requested server version.
    */
-  protected AutodiscoverService(ExchangeServiceBase service,
-      ExchangeVersion requestedServerVersion) {
+  AutodiscoverService(ExchangeServiceBase service, ExchangeVersion requestedServerVersion) {
     super(service, requestedServerVersion);
     this.dnsClient = new AutodiscoverDnsClient(this);
   }
@@ -1812,8 +1623,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    *                   This method handles will run the entire Autodiscover "discovery"
    *                   algorithm and will follow address and URL redirections.
    */
-  public GetUserSettingsResponse getUserSettings(String userSmtpAddress,
-      UserSettingName... userSettingNames) throws Exception {
+  GetUserSettingsResponse getUserSettings(String userSmtpAddress, UserSettingName... userSettingNames) throws Exception {
     List<UserSettingName> requestedSettings = new ArrayList<UserSettingName>();
     requestedSettings.addAll(Arrays.asList(userSettingNames));
 
@@ -1908,96 +1718,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
   }
 
   /**
-   * Try to get the partner access information for the given target tenant.
-   *
-   * @param targetTenantDomain The target domain or user email address.
-   * @param partnerAccessCredentials The partner access credentials.
-   * @param targetTenantAutodiscoverUrl The autodiscover url for the given tenant.
-   * @return True if the partner access information was retrieved, false otherwise.
-   */
-
-  /** commented as the code belongs to Partener Token credentials. */
-	  
-  /*  public boolean tryGetPartnerAccess(
-        String targetTenantDomain,
-        OutParam<ExchangeCredentials> partnerAccessCredentials,
-        OutParam<URI> targetTenantAutodiscoverUrl)
-    {
-        EwsUtilities.validateNonBlankStringParam(targetTenantDomain, "targetTenantDomain");
-
-        // the user should set the url to its own tenant's autodiscover url.
-        // 
-        if (this.url == null)
-        {
-            throw new ServiceValidationException(Strings.PartnerTokenRequestRequiresUrl);
-        }
-
-        if (this.getRequestedServerVersion().ordinal() < ExchangeVersion.Exchange2010_SP1.ordinal())
-        {
-            throw new ServiceVersionException(
-                String.format(
-                    Strings.PartnerTokenIncompatibleWithRequestVersion,
-                    ExchangeVersion.Exchange2010_SP1));
-        }
-
-        partnerAccessCredentials = null;
-        targetTenantAutodiscoverUrl = null;
-
-        String smtpAddress = targetTenantDomain;
-        if (!smtpAddress.contains("@"))
-        {
-            smtpAddress = "SystemMailbox{e0dc1c29-89c3-4034-b678-e6c29d823ed9}@" + targetTenantDomain;
-        }
-
-        List<String> smtpAddresses = new ArrayList<String>();
-        smtpAddresses.add(smtpAddress);
-        List<UserSettingName> settings = new ArrayList<UserSettingName>();
-        settings.add(UserSettingName.ExternalEwsUrl);
-        
-        GetUserSettingsRequest request = new GetUserSettingsRequest(this, this.url, true  expectPartnerToken );
-        request.setSmtpAddresses(smtpAddresses);
-        request.setSettings(settings);
-        GetUserSettingsResponseCollection response = request.execute();
-
-        if (request.getPartnerToken()!=null && !request.getPartnerToken().isEmpty())
-            || request.getPartnerTokenReference()!=null && !request.getPartnerTokenReference().isEmpty() ))
-        {
-            return false;
-        }
-
-        if (request.getErrorCode() == AutodiscoverErrorCode.NoError)
-        {
-            GetUserSettingsResponse firstResponse = request.getResponse(0);
-            if (firstResponse.getErrorCode() == AutodiscoverErrorCode.NoError)
-            {
-                targetTenantAutodiscoverUrl = this.url;
-            }
-            else if (firstResponse.getErrorCode() == AutodiscoverErrorCode.RedirectUrl)
-            {
-                targetTenantAutodiscoverUrl = new URI(firstResponse.getRedirectTarget());
-            }
-            else
-            {
-                return false;
-            }
-        }
-        else
-        {
-            return false;
-        }
-
-        partnerAccessCredentials = new PartnerTokenCredentials(
-            request.getPartnerToken(),
-            request.getPartnerTokenReference());
-
-        targetTenantAutodiscoverUrl = partnerAccessCredentials.adjustUrl(
-            targetTenantAutodiscoverUrl);
-
-        return true;
-    }
-*/
-
-  /**
    * Gets the domain this service is bound to. When this property is
    * set, the domain
    * <p/>
@@ -2050,7 +1770,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
     this.url = value;
   }
 
-  public Boolean isExternal() {
+  protected Boolean isExternal() {
     return this.isExternal;
   }
 
