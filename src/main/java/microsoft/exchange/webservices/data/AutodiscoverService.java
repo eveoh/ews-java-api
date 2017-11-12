@@ -416,11 +416,9 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
       int currentHop = 1;
       OutParam<Integer> outParam = new OutParam<Integer>();
       outParam.setParam(currentHop);
-      List<String> redirectionEmailAddresses = new ArrayList<String>();
       return this.internalGetLegacyUserSettings(
           cls,
           emailAddress,
-          redirectionEmailAddresses,
           outParam);
     }
   }
@@ -439,7 +437,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
   TSettings internalGetLegacyUserSettings(
       Class<TSettings> cls,
       String emailAddress,
-      List<String> redirectionEmailAddresses,
       OutParam<Integer> currentHop)
       throws Exception {
     String domainName = EwsUtilities.domainFromEmailAddress(emailAddress);
@@ -509,7 +506,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
                                   .getRedirectTarget()));
               return this.internalGetLegacyUserSettings(cls,
                   settings.getRedirectTarget(),
-                  redirectionEmailAddresses,
                   currentHop);
             } else {
               throw new AutodiscoverLocalException(
@@ -642,8 +638,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
       Class<TSettings> cls, String emailAddress, URI redirectionUrl,
       OutParam<TSettings> settings) throws AutodiscoverLocalException,
       AutodiscoverRemoteException, Exception {
-    List<String> redirectionEmailAddresses = new ArrayList<String>();
-
     // Bug 60274: Performing a non-SSL HTTP GET to retrieve a redirection
     // URL is potentially unsafe. We allow the caller
     // to specify delegate to be called to determine whether we are allowed
@@ -669,7 +663,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
               settings.setParam(
                   this.internalGetLegacyUserSettings(cls,
                       emailAddress,
-                      redirectionEmailAddresses,
                       outParam));
               return true;
             case RedirectUrl:
@@ -772,9 +765,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
     List<String> smtpAddresses = new ArrayList<String>();
     smtpAddresses.add(smtpAddress);
 
-    List<String> redirectionEmailAddresses = new ArrayList<String>();
-    redirectionEmailAddresses.add(smtpAddress.toLowerCase());
-
     for (int currentHop = 0; currentHop < AutodiscoverService.AutodiscoverMaxRedirections; currentHop++) {
       GetUserSettingsResponse response = this.getUserSettings(smtpAddresses,
           requestedSettings).getTResponseAtIndex(0);
@@ -799,7 +789,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
               String.format("Autodiscover service returned redirection URL '%s'.",
                   response.getRedirectTarget()));
 
-          //this.url = new URI(response.getRedirectTarget());
           this.url = this.getCredentials().adjustUrl(new URI(response.getRedirectTarget()));
           break;
 
