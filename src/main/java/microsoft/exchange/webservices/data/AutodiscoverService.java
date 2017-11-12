@@ -350,12 +350,11 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
   private boolean tryGetRedirectionResponse(HttpWebRequest request,
       OutParam<URI> redirectUrl) throws XMLStreamException, IOException,
       EWSHttpException {
-    // redirectUrl = null;
     if (AutodiscoverRequest.isRedirectionResponse(request)) {
       // Get the redirect location and verify that it's valid.
       String location = request.getResponseHeaderField("Location");
 
-      if (!(location == null || location.isEmpty())) {
+      if (location != null && !location.isEmpty()) {
         try {
           redirectUrl.setParam(new URI(location));
 
@@ -406,20 +405,16 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
     }
 
     // If Domain is specified, figure out the endpoint Url and call service.
-    else if (!(this.domain == null || this.domain.isEmpty())) {
+    else if (this.domain != null && !this.domain.isEmpty()) {
       URI autodiscoverUrl = new URI(String.format(AutodiscoverLegacyHttpsUrl, this.domain));
       return this.getLegacyUserSettingsAtUrl(cls,
           emailAddress, autodiscoverUrl);
     } else {
-      // No Url or Domain specified, need to
-      //figure out which endpoint to use.
+      // No Url or Domain specified, need to figure out which endpoint to use.
       int currentHop = 1;
       OutParam<Integer> outParam = new OutParam<Integer>();
       outParam.setParam(currentHop);
-      return this.internalGetLegacyUserSettings(
-          cls,
-          emailAddress,
-          outParam);
+      return this.internalGetLegacyUserSettings(cls, emailAddress, outParam);
     }
   }
 
@@ -449,8 +444,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
 
     int currentUrlIndex = 0;
 
-    // Used to save exception for later reporting.
-    Exception delayedException = null;
     TSettings settings;
 
     do {
@@ -472,11 +465,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
                   .traceMessage(
                       TraceFlags.AutodiscoverResponse,
                       String
-                          .format(
-                              "Autodiscover " +
-                                  "service " +
-                                  "returned " +
-                                  "redirection URL '%s'.",
+                          .format("Autodiscover service returned redirection URL '%s'.",
                               settings
                                   .getRedirectTarget()));
 
@@ -494,14 +483,8 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
 
               this
                   .traceMessage(
-                      TraceFlags.AutodiscoverResponse,
-                      String
-                          .format(
-                              "Autodiscover " +
-                                  "service " +
-                                  "returned " +
-                                  "redirection email " +
-                                  "address '%s'.",
+                      TraceFlags.AutodiscoverResponse, String.format(
+                          "Autodiscover service returned redirection email address '%s'.",
                               settings
                                   .getRedirectTarget()));
               return this.internalGetLegacyUserSettings(cls,
@@ -573,11 +556,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
         return outParam.getParam();
       }
 
-      // If there was an earlier exception, throw it.
-      if (delayedException != null) {
-        throw delayedException;
-      }
-
       throw new AutodiscoverLocalException(Strings.AutodiscoverCouldNotBeLocated);
     }
   }
@@ -603,7 +581,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
 
     String hostname = this.dnsClient
         .findAutodiscoverHostFromSrv(domainName);
-    if (!(hostname == null || hostname.isEmpty())) {
+    if (hostname != null && !hostname.isEmpty()) {
       this
           .traceMessage(TraceFlags.AutodiscoverConfiguration,
               String.format(
@@ -670,20 +648,10 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
                 redirectionUrl = new URI(settings.getParam()
                     .getRedirectTarget());
               } catch (URISyntaxException ex) {
-                this
-                    .traceMessage(
-                        TraceFlags.
-                            AutodiscoverConfiguration,
-                        String
-                            .format(
-                                "Service " +
-                                    "returned " +
-                                    "invalid " +
-                                    "redirection " +
-                                    "URL %s",
-                                settings
-                                    .getParam()
-                                    .getRedirectTarget()));
+                this.traceMessage(TraceFlags.
+                                      AutodiscoverConfiguration, String
+                                      .format("Service returned invalid redirection URL %s",
+                                              settings.getParam().getRedirectTarget()));
                 return false;
               }
               break;
@@ -739,15 +707,13 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
   private GetUserSettingsResponse internalGetLegacyUserSettings(String emailAddress,
       List<UserSettingName> requestedSettings) throws Exception {
     // Cannot call legacy Autodiscover service with WindowsLive and other WSSecurity-based credentials
-    if ((this.getCredentials() != null) && (this.getCredentials() instanceof WSSecurityBasedCredentials)) {
+    if (this.getCredentials() instanceof WSSecurityBasedCredentials) {
       throw new AutodiscoverLocalException(Strings.WLIDCredentialsCannotBeUsedWithLegacyAutodiscover);
     }
 
     OutlookConfigurationSettings settings = this.getLegacyUserSettings(
         OutlookConfigurationSettings.class,
         emailAddress);
-
-
 
     return settings.convertSettings(emailAddress, requestedSettings);
   }
@@ -816,8 +782,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
     EwsUtilities.validateParam(smtpAddresses, "smtpAddresses");
     EwsUtilities.validateParam(settings, "settings");
 
-    return this.getSettings(
-        GetUserSettingsResponseCollection.class, UserSettingName.class,
+    return this.<GetUserSettingsResponseCollection,UserSettingName>getSettings(
         smtpAddresses, settings, null, this,
         new IFuncDelegate<String>() {
           public String func() throws FormatException {
@@ -832,8 +797,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    *
    * @param <TGetSettingsResponseCollection> the generic type
    * @param <TSettingName>                   the generic type
-   * @param cls                              the cls
-   * @param cls1                             the cls1
    * @param identities                       Either the domains or the SMTP addresses of the users.
    * @param settings                         The settings.
    * @param requestedVersion                 Requested version of the Exchange service.
@@ -844,8 +807,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    */
   private <TGetSettingsResponseCollection, TSettingName>
   TGetSettingsResponseCollection getSettings(
-      Class<TGetSettingsResponseCollection> cls,
-      Class<TSettingName> cls1,
       List<String> identities,
       List<TSettingName> settings,
       ExchangeVersion requestedVersion,
@@ -893,14 +854,11 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
             Strings.AutodiscoverServiceRequestRequiresDomainOrUrl);
       }
 
-      for (int currentHostIndex = 0; currentHostIndex < hosts.size(); currentHostIndex++) {
-        String host = hosts.get(currentHostIndex);
+      for (String host : hosts) {
         OutParam<URI> outParams = new OutParam<URI>();
         if (this.tryGetAutodiscoverEndpointUrl(host, outParams)) {
           autodiscoverUrl = outParams.getParam();
-          response = getSettingsMethod.func(identities, settings,
-              requestedVersion,
-              autodiscoverUrl);
+          response = getSettingsMethod.func(identities, settings, requestedVersion, autodiscoverUrl);
 
           // If we got this far, the response was successful, set Url.
           this.url = autodiscoverUrl;
@@ -1019,9 +977,8 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
     EwsUtilities.validateParam(domains, "domains");
     EwsUtilities.validateParam(settings, "settings");
 
-    return this.getSettings(
-        GetDomainSettingsResponseCollection.class,
-        DomainSettingName.class, domains, settings,
+    return this.<GetDomainSettingsResponseCollection,DomainSettingName>getSettings(
+        domains, settings,
         requestedVersion, this,
         new IFuncDelegate<String>() {
           public String func() {
