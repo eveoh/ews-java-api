@@ -28,7 +28,15 @@ import org.w3c.dom.Node;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 
 /**
  * Represents a binding to the Exchange Web Services.
@@ -65,8 +73,6 @@ public final class ExchangeService extends ExchangeServiceBase implements
    * The unified messaging.
    */
   private UnifiedMessaging unifiedMessaging;
-
-  private boolean enableScpLookup = true;
 
   /**
    * When false, used to indicate that we should use "Exchange2007" as the server version String rather than
@@ -3543,7 +3549,6 @@ public final class ExchangeService extends ExchangeServiceBase implements
         requestedServerVersion);
     autodiscoverService
         .setRedirectionUrlValidationCallback(validateRedirectionUrlCallback);
-    autodiscoverService.setEnableScpLookup(this.getEnableScpLookup());
 
     GetUserSettingsResponse response = autodiscoverService.getUserSettings(
         emailAddress, UserSettingName.InternalEwsUrl,
@@ -3551,8 +3556,7 @@ public final class ExchangeService extends ExchangeServiceBase implements
 
     switch (response.getErrorCode()) {
       case NoError:
-        return this.getEwsUrlFromResponse(response, autodiscoverService
-            .isExternal().TRUE);
+        return this.getEwsUrlFromResponse(response);
 
       case InvalidUser:
         throw new ServiceRemoteException(String.format(Strings.InvalidUser,
@@ -3573,8 +3577,7 @@ public final class ExchangeService extends ExchangeServiceBase implements
     }
   }
 
-  private URI getEwsUrlFromResponse(GetUserSettingsResponse response,
-      boolean isExternal) throws URISyntaxException,
+  private URI getEwsUrlFromResponse(GetUserSettingsResponse response) throws URISyntaxException,
       AutodiscoverLocalException {
     String uriString;
 
@@ -3584,8 +3587,7 @@ public final class ExchangeService extends ExchangeServiceBase implements
     // Bug E14:82650 -- Either protocol
     // may be returned without a configured URL.
     OutParam<String> outParam = new OutParam<String>();
-    if ((isExternal && response.tryGetSettingValue(String.class,
-        UserSettingName.ExternalEwsUrl, outParam))) {
+    if (response.tryGetSettingValue(String.class, UserSettingName.ExternalEwsUrl, outParam)) {
       uriString = outParam.getParam();
       if (!(uriString == null || uriString.isEmpty())) {
         return new URI(uriString);
@@ -3814,22 +3816,6 @@ public final class ExchangeService extends ExchangeServiceBase implements
     }
 
     return this.unifiedMessaging;
-  }
-
-  /**
-   * Gets or sets a value indicating whether the AutodiscoverUrl method should
-   * perform SCP (Service Connection Point) record lookup when determining the
-   * Autodiscover service URL.
-   *
-   * @return enable scp lookup flag.
-   */
-  public boolean getEnableScpLookup() {
-    return this.enableScpLookup;
-  }
-
-
-  public void setEnableScpLookup(boolean value) {
-    this.enableScpLookup = value;
   }
 
   /**

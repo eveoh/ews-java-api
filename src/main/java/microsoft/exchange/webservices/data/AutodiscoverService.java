@@ -52,11 +52,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
   private String domain;
 
   /**
-   * The is external.
-   */
-  private Boolean isExternal = true;
-
-  /**
    * The url.
    */
   private URI url;
@@ -76,11 +71,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * The dns server address.
    */
   private String dnsServerAddress;
-
-  /**
-   * The enable scp lookup.
-   */
-  private boolean enableScpLookup = true;
 
   /**
    * Autodiscover legacy path
@@ -454,19 +444,11 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
       throws Exception {
     String domainName = EwsUtilities.domainFromEmailAddress(emailAddress);
 
-    int scpUrlCount;
-    OutParam<Integer> outParamInt = new OutParam<Integer>();
-    List<URI> urls = this.getAutodiscoverServiceUrls(domainName, outParamInt);
-    scpUrlCount = outParamInt.getParam();
+    List<URI> urls = this.getAutodiscoverServiceUrls(domainName);
     if (urls.size() == 0) {
       throw new ServiceValidationException(
           Strings.AutodiscoverServiceRequestRequiresDomainOrUrl);
     }
-
-    // Assume caller is not inside the Intranet, regardless of whether SCP
-    // Urls were returned or not. SCP Urls are only relevent if one of them
-    // returns valid Autodiscover settings.
-    this.isExternal = true;
 
     int currentUrlIndex = 0;
 
@@ -476,7 +458,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
 
     do {
       URI autodiscoverUrl = urls.get(currentUrlIndex);
-      boolean isScpUrl = currentUrlIndex < scpUrlCount;
 
       try {
         settings = this.getLegacyUserSettingsAtUrl(cls,
@@ -484,11 +465,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
 
         switch (settings.getResponseType()) {
           case Success:
-            // Not external if Autodiscover endpoint found via SCP
-            // returned the settings.
-            if (isScpUrl) {
-              this.isExternal = false;
-            }
             this.url = autodiscoverUrl;
             return settings;
           case RedirectUrl:
@@ -531,12 +507,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
                                   "address '%s'.",
                               settings
                                   .getRedirectTarget()));
-              // Bug E14:255576 If this email address was already tried, we may have a loop
-              // in SCP lookups. Disable consideration of SCP records.
-              this.disableScpLookupIfDuplicateRedirection(
-                  settings.getRedirectTarget(),
-                  redirectionEmailAddresses);
-
               return this.internalGetLegacyUserSettings(cls,
                   settings.getRedirectTarget(),
                   redirectionEmailAddresses,
@@ -546,26 +516,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
                   Strings.MaximumRedirectionHopsExceeded);
             }
           case Error:
-            // Don't treat errors from an SCP-based Autodiscover service
-            // to be conclusive.
-            // We'll try the next one and record the error for later.
-            if (isScpUrl) {
-              this
-                  .traceMessage(
-                      TraceFlags.AutodiscoverConfiguration,
-                      "Error returned by " +
-                          "Autodiscover service " +
-                          "found via SCP, treating " +
-                          "as inconclusive.");
-
-              delayedException = new AutodiscoverRemoteException(
-                  Strings.AutodiscoverError, settings.getError());
-              currentUrlIndex++;
-            } else {
-              throw new AutodiscoverRemoteException(
-                  Strings.AutodiscoverError, settings.getError());
-            }
-            break;
+            throw new AutodiscoverRemoteException(Strings.AutodiscoverError, settings.getError());
           default:
             EwsUtilities
                 .EwsAssert(false,
@@ -713,11 +664,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
                   Strings.AutodiscoverError, settings.getParam()
                   .getError());
             case RedirectAddress:
-              // If this email address was already tried,
-              //we may have a loop
-              // in SCP lookups. Disable consideration of SCP records.
-              this.disableScpLookupIfDuplicateRedirection(settings.getParam().getRedirectTarget(),
-                  redirectionEmailAddresses);
               OutParam<Integer> outParam = new OutParam<Integer>();
               outParam.setParam(currentHop);
               settings.setParam(
@@ -791,25 +737,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
   }
 
   /**
-   * Disables SCP lookup if duplicate email address redirection.
-   *
-   * @param emailAddress              The email address to use.
-   * @param redirectionEmailAddresses The list of prior redirection email addresses.
-   */
-  private void disableScpLookupIfDuplicateRedirection(
-      String emailAddress,
-      List<String> redirectionEmailAddresses) {
-    // SMTP addresses are case-insensitive so entries are converted to lower-case.
-    emailAddress = emailAddress.toLowerCase();
-
-    if (redirectionEmailAddresses.contains(emailAddress)) {
-      this.enableScpLookup = false;
-    } else {
-      redirectionEmailAddresses.add(emailAddress);
-    }
-  }
-
-  /**
    * Gets user settings from Autodiscover legacy endpoint.
    *
    * @param emailAddress      The email address to use.
@@ -864,12 +791,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
               toLowerCase());
           this.url = null;
           this.domain = null;
-
-          // If this email address was already tried,
-          //we may have a loop
-          // in SCP lookups. Disable consideration of SCP records.
-          this.disableScpLookupIfDuplicateRedirection(response.getRedirectTarget(),
-              redirectionEmailAddresses);
           break;
 
         case RedirectUrl:
@@ -974,21 +895,10 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
     // No Url or Domain specified, need to figure out which endpoint(s) to
     // try.
     else {
-      // Assume caller is not inside the Intranet, regardless of whether
-      // SCP Urls
-      // were returned or not. SCP Urls are only relevent if one of them
-      // returns
-      // valid Autodiscover settings.
-      this.isExternal = true;
-
       URI autodiscoverUrl;
 
       String domainName = getDomainMethod.func();
-      int scpHostCount;
-      OutParam<Integer> outParam = new OutParam<Integer>();
-      List<String> hosts = this.getAutodiscoverServiceHosts(domainName,
-          outParam);
-      scpHostCount = outParam.getParam();
+      List<String> hosts = this.getAutodiscoverServiceHosts(domainName);
       if (hosts.size() == 0) {
         throw new ServiceValidationException(
             Strings.AutodiscoverServiceRequestRequiresDomainOrUrl);
@@ -996,7 +906,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
 
       for (int currentHostIndex = 0; currentHostIndex < hosts.size(); currentHostIndex++) {
         String host = hosts.get(currentHostIndex);
-        boolean isScpHost = currentHostIndex < scpHostCount;
         OutParam<URI> outParams = new OutParam<URI>();
         if (this.tryGetAutodiscoverEndpointUrl(host, outParams)) {
           autodiscoverUrl = outParams.getParam();
@@ -1006,12 +915,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
 
           // If we got this far, the response was successful, set Url.
           this.url = autodiscoverUrl;
-
-          // Not external if Autodiscover endpoint found via SCP
-          // returned the settings.
-          if (isScpHost) {
-            this.isExternal = false;
-          }
 
           return response;
         }
@@ -1255,17 +1158,12 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * Gets the list of autodiscover service URLs.
    *
    * @param domainName   Domain name.
-   * @param scpHostCount Count of hosts found via SCP lookup.
    * @return List of Autodiscover URLs.
    * @throws java.net.URISyntaxException the URI Syntax exception
    */
-  private List<URI> getAutodiscoverServiceUrls(String domainName, OutParam<Integer> scpHostCount)
+  private List<URI> getAutodiscoverServiceUrls(String domainName)
       throws URISyntaxException {
-    List<URI> urls;
-
-    urls = new ArrayList<URI>();
-
-    scpHostCount.setParam(urls.size());
+    List<URI> urls = new ArrayList<URI>();
 
     // As a fallback, add autodiscover URLs base on the domain name.
     urls.add(new URI(String.format(AutodiscoverLegacyHttpsUrl,
@@ -1280,15 +1178,14 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    * Gets the list of autodiscover service hosts.
    *
    * @param domainName Domain name.
-   * @param outParam   the out param
    * @return List of hosts.
    * @throws java.net.URISyntaxException the uRI syntax exception
    * @throws ClassNotFoundException      the class not found exception
    */
-  private List<String> getAutodiscoverServiceHosts(String domainName, OutParam<Integer> outParam) throws URISyntaxException,
+  private List<String> getAutodiscoverServiceHosts(String domainName) throws URISyntaxException,
       ClassNotFoundException {
 
-    List<URI> urls = this.getAutodiscoverServiceUrls(domainName, outParam);
+    List<URI> urls = this.getAutodiscoverServiceUrls(domainName);
     List<String> lst = new ArrayList<String>();
     for (URI url : urls) {
       lst.add(url.getHost());
@@ -1770,15 +1667,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
     this.url = value;
   }
 
-  protected Boolean isExternal() {
-    return this.isExternal;
-  }
-
-  protected void setIsExternal(Boolean value) {
-    this.isExternal = value;
-  }
-
-
   /**
    * Gets the redirection url validation callback.
    *
@@ -1815,26 +1703,6 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
    */
   protected void setDnsServerAddress(String value) {
     this.dnsServerAddress = value;
-  }
-
-  /**
-   * Gets a value indicating whether the AutodiscoverService should
-   * perform SCP (ServiceConnectionPoint) record lookup when determining
-   * the Autodiscover service URL.
-   *
-   * @return the enable scp lookup
-   */
-  public boolean getEnableScpLookup() {
-    return this.enableScpLookup;
-  }
-
-  /**
-   * Sets the enable scp lookup.
-   *
-   * @param value the new enable scp lookup
-   */
-  public void setEnableScpLookup(boolean value) {
-    this.enableScpLookup = value;
   }
 
   /*
