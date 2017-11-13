@@ -25,7 +25,6 @@ package microsoft.exchange.webservices.data;
 
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthProtocolState;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.NTCredentials;
@@ -33,13 +32,19 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.config.SocketConfig;
-import org.apache.http.impl.client.*;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -54,7 +59,7 @@ class HttpClientWebRequest extends HttpWebRequest {
   /**
    * The Http Method.
    */
-  private HttpPost httpPost = null;
+  private HttpRequestBase httpRequest = null;
   private CloseableHttpResponse response = null;
 
   private final CloseableHttpClient httpClient;
@@ -79,15 +84,15 @@ class HttpClientWebRequest extends HttpWebRequest {
     // If that is not possible, we simply cleanup the whole connection
     if (response != null && response.getEntity() != null) {
       EntityUtils.consume(response.getEntity());
-    } else if (httpPost != null) {
-      httpPost.releaseConnection();
+    } else if (httpRequest != null) {
+      httpRequest.releaseConnection();
     }
 
-    // We set httpPost to null to prevent the connection from being closed again by an accidental
+    // We set httpRequest to null to prevent the connection from being closed again by an accidental
     // second call to close()
     // The response is kept, in case something in the library still wants to read something from it,
     // like response code or headers
-    httpPost = null;
+    httpRequest = null;
   }
 
   /**
@@ -95,22 +100,26 @@ class HttpClientWebRequest extends HttpWebRequest {
    */
   @Override
   public void prepareConnection() {
-    httpPost = new HttpPost(getUrl().toString());
+    if (getRequestMethod().equals("POST")) {
+      httpRequest = new HttpPost(getUrl().toString());
+    } else {
+      httpRequest = new HttpGet(getUrl().toString());
+    }
 
     // Populate headers.
-    httpPost.addHeader("Content-type", getContentType());
-    httpPost.addHeader("User-Agent", getUserAgent());
-    httpPost.addHeader("Accept", getAccept());
-    httpPost.addHeader("Keep-Alive", "300");
-    httpPost.addHeader("Connection", "Keep-Alive");
+    httpRequest.addHeader("Content-type", getContentType());
+    httpRequest.addHeader("User-Agent", getUserAgent());
+    httpRequest.addHeader("Accept", getAccept());
+    httpRequest.addHeader("Keep-Alive", "300");
+    httpRequest.addHeader("Connection", "Keep-Alive");
 
     if (isAcceptGzipEncoding()) {
-      httpPost.addHeader("Accept-Encoding", "gzip,deflate");
+      httpRequest.addHeader("Accept-Encoding", "gzip,deflate");
     }
 
     if (getHeaders() != null) {
       for (Map.Entry<String, String> httpHeader : getHeaders().entrySet()) {
-        httpPost.addHeader(httpHeader.getKey(), httpHeader.getValue());
+        httpRequest.addHeader(httpHeader.getKey(), httpHeader.getValue());
       }
     }
 
@@ -157,7 +166,7 @@ class HttpClientWebRequest extends HttpWebRequest {
       httpContext.getTargetAuthState().reset();
     }
 
-    httpPost.setConfig(requestConfigBuilder.build());
+    httpRequest.setConfig(requestConfigBuilder.build());
   }
 
   /**
@@ -205,11 +214,10 @@ class HttpClientWebRequest extends HttpWebRequest {
    */
   @Override
   public OutputStream getOutputStream() throws EWSHttpException {
-    OutputStream os = null;
     throwIfRequestIsNull();
-    os = new ByteArrayOutputStream();
+    OutputStream os = new ByteArrayOutputStream();
 
-    httpPost.setEntity(new ByteArrayOSRequestEntity(os));
+    ((HttpPost) httpRequest).setEntity(new ByteArrayOSRequestEntity(os));
     return os;
   }
 
@@ -297,7 +305,7 @@ class HttpClientWebRequest extends HttpWebRequest {
   @Override
   public int executeRequest() throws EWSHttpException, IOException {
     throwIfRequestIsNull();
-    response = httpClient.execute(httpPost, httpContext);
+    response = httpClient.execute(httpRequest, httpContext);
     return response.getStatusLine().getStatusCode(); // ?? don't know what is wanted in return
   }
 
@@ -330,7 +338,7 @@ class HttpClientWebRequest extends HttpWebRequest {
    * @throws EWSHttpException the eWS http exception
    */
   private void throwIfRequestIsNull() throws EWSHttpException {
-    if (null == httpPost) {
+    if (null == httpRequest) {
       throw new EWSHttpException("Connection not established");
     }
   }
@@ -351,7 +359,7 @@ class HttpClientWebRequest extends HttpWebRequest {
     throwIfRequestIsNull();
     Map<String, String> map = new HashMap<String, String>();
 
-    Header[] hM = httpPost.getAllHeaders();
+    Header[] hM = httpRequest.getAllHeaders();
     for (Header header : hM) {
       map.put(header.getName(), header.getValue());
     }
