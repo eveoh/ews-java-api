@@ -469,7 +469,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
                               settings
                                   .getRedirectTarget()));
 
-              urls.add(currentUrlIndex, new URI(
+              urls.set(currentUrlIndex, new URI(
                   settings.getRedirectTarget()));
 
               break;
