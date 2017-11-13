@@ -86,7 +86,7 @@ public abstract class ExchangeServiceBase implements Closeable {
   /**
    * The timeout.
    */
-  private int timeout = 100000;
+  protected int timeout = 100000;
 
   /**
    * The trace enabled.
