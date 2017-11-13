@@ -1114,9 +1114,9 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
 
     // As a fallback, add autodiscover URLs base on the domain name.
     urls.add(new URI(String.format(AutodiscoverLegacyHttpsUrl,
-        domainName)));
+                                   "autodiscover." + domainName)));
     urls.add(new URI(String.format(AutodiscoverLegacyHttpsUrl,
-        "autodiscover." + domainName)));
+        domainName)));
 
     return urls;
   }
