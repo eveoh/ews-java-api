@@ -641,7 +641,7 @@ public final class AutodiscoverService extends ExchangeServiceBase implements
               outParam.setParam(currentHop);
               settings.setParam(
                   this.internalGetLegacyUserSettings(cls,
-                      emailAddress,
+                      settings.getParam().getRedirectTarget(),
                       outParam));
               return true;
             case RedirectUrl:
