@@ -3562,36 +3562,21 @@ public final class ExchangeService extends ExchangeServiceBase {
     }
   }
 
-  private URI getEwsUrlFromResponse(GetUserSettingsResponse response) throws URISyntaxException,
-      AutodiscoverLocalException {
-    String uriString;
+  private URI getEwsUrlFromResponse(GetUserSettingsResponse response)
+      throws URISyntaxException, AutodiscoverLocalException {
+    String url = (String) response.getSettings().get(UserSettingName.ExternalEwsUrl);
 
-    // Bug E14:59063 -- Figure out which URL to use: Internal or External.
-    // Bug E14:67646 -- AutoDiscover may not return an external protocol.
-    // First try external, then internal.
-    // Bug E14:82650 -- Either protocol
-    // may be returned without a configured URL.
-    OutParam<String> outParam = new OutParam<String>();
-    if (response.tryGetSettingValue(String.class, UserSettingName.ExternalEwsUrl, outParam)) {
-      uriString = outParam.getParam();
-      if (!(uriString == null || uriString.isEmpty())) {
-        return new URI(uriString);
-      }
-    }
-    if ((response.tryGetSettingValue(String.class,
-        UserSettingName.InternalEwsUrl, outParam) || response
-        .tryGetSettingValue(String.class,
-            UserSettingName.ExternalEwsUrl, outParam))) {
-      uriString = outParam.getParam();
-      if (!(uriString == null || uriString.isEmpty())) {
-        return new URI(uriString);
-      }
+    if (url != null && !url.isEmpty()) {
+      return new URI(url);
     }
 
-    // If Autodiscover doesn't return an
-    // internal or external EWS URL, throw an exception.
-    throw new AutodiscoverLocalException(
-        Strings.AutodiscoverDidNotReturnEwsUrl);
+    url = (String) response.getSettings().get(UserSettingName.InternalEwsUrl);
+
+    if (url != null && !url.isEmpty()) {
+      return new URI(url);
+    }
+
+    throw new AutodiscoverLocalException(Strings.AutodiscoverDidNotReturnEwsUrl);
   }
 
   // region Diagnostic Method -- Only used by test

@@ -65,27 +65,6 @@ public final class GetUserSettingsResponse extends AutodiscoverResponse {
   }
 
   /**
-   * Tries the get the user setting value.
-   *
-   * @param cls     Type of user setting.
-   * @param setting The setting.
-   * @param value   The setting value.
-   * @return True if setting was available.
-   */
-  public <T> boolean tryGetSettingValue(Class<T> cls,
-      UserSettingName setting, OutParam<T> value) {
-    Object objValue;
-    if (this.getSettings().containsKey(setting)) {
-      objValue = this.getSettings().get(setting);
-      value.setParam((T) objValue);
-      return true;
-    } else {
-      value.setParam(null);
-      return false;
-    }
-  }
-
-  /**
    * Gets the SMTP address this response applies to.
    *
    * @return the smtp address
