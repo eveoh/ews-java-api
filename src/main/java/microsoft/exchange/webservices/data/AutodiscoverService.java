@@ -124,6 +124,12 @@ public final class AutodiscoverService extends ExchangeServiceBase {
       MinimumRequestVersionForAutoDiscoverSoapService =
       ExchangeVersion.Exchange2010;
 
+  /**
+   * Hardcoded O365 vars, as O365 discovery is borked
+   */
+  private static final String o365AutodiscoverHost = "autodiscover-s.outlook.com";
+
+  private static final String o365EwsUrl = "https://outlook.office365.com/EWS/Exchange.asmx";
 
   // Legacy Autodiscover
 
@@ -677,7 +683,7 @@ public final class AutodiscoverService extends ExchangeServiceBase {
 
     for (int currentHop = 0; currentHop < AutodiscoverService.AutodiscoverMaxRedirections; currentHop++) {
       GetUserSettingsResponse response = this.getUserSettings(smtpAddresses,
-          requestedSettings).getTResponseAtIndex(0);
+          requestedSettings);
 
       switch (response.getErrorCode()) {
         case RedirectAddress:
@@ -720,7 +726,7 @@ public final class AutodiscoverService extends ExchangeServiceBase {
    * @return GetUserSettingsResponseCollection Object.
    * @throws Exception the exception
    */
-  private GetUserSettingsResponseCollection getUserSettings(final List<String> smtpAddresses,
+  private GetUserSettingsResponse getUserSettings(final List<String> smtpAddresses,
       List<UserSettingName> settings)
       throws Exception {
     EwsUtilities.validateParam(smtpAddresses, "smtpAddresses");
@@ -737,7 +743,7 @@ public final class AutodiscoverService extends ExchangeServiceBase {
    * @return TGetSettingsResponse Collection.
    * @throws Exception the exception
    */
-  private GetUserSettingsResponseCollection getSettings(List<String> identities,
+  private GetUserSettingsResponse getSettings(List<String> identities,
       List<UserSettingName> settings) throws Exception {
     GetUserSettingsResponseCollection response;
 
@@ -754,7 +760,7 @@ public final class AutodiscoverService extends ExchangeServiceBase {
       URI autodiscoverUrl = this.url;
       response = internalGetUserSettings(identities, settings, this.url);
       this.url = autodiscoverUrl;
-      return response;
+      return response.getTResponseAtIndex(0);
     }
     // If Domain is specified, determine endpoint Url and call service.
     else if (!(this.domain == null || this.domain.isEmpty())) {
@@ -763,7 +769,7 @@ public final class AutodiscoverService extends ExchangeServiceBase {
 
       // If we got this far, response was successful, set Url.
       this.url = autodiscoverUrl;
-      return response;
+      return response.getTResponseAtIndex(0);
     }
     // No Url or Domain specified, need to figure out which endpoint(s) to
     // try.
@@ -786,7 +792,7 @@ public final class AutodiscoverService extends ExchangeServiceBase {
           // If we got this far, the response was successful, set Url.
           this.url = autodiscoverUrl;
 
-          return response;
+          return response.getTResponseAtIndex(0);
         }
       }
 
@@ -801,12 +807,18 @@ public final class AutodiscoverService extends ExchangeServiceBase {
           this.tryGetAutodiscoverEndpointUrl(autodiscoverUrl
               .getHost(), outParamUrl)) {
         autodiscoverUrl = outParamUrl.getParam();
+
+        // Shortcut for O365, as autodiscover does not always work well there
+        if(autodiscoverUrl.getHost().equals(o365AutodiscoverHost)) {
+          return createO365UserSettingsResponse();
+        }
+
         response = internalGetUserSettings(identities, settings, autodiscoverUrl);
 
         // If we got this far, the response was successful, set Url.
         this.url = autodiscoverUrl;
 
-        return response;
+        return response.getTResponseAtIndex(0);
       }
 
       // Last Chance: try to read autodiscover SRV Record from DNS. If we
@@ -826,7 +838,7 @@ public final class AutodiscoverService extends ExchangeServiceBase {
         // If we got this far, the response was successful, set Url.
         this.url = autodiscoverUrl;
 
-        return response;
+        return response.getTResponseAtIndex(0);
       } else {
         throw new AutodiscoverLocalException(
             Strings.AutodiscoverCouldNotBeLocated);
@@ -1294,5 +1306,18 @@ public final class AutodiscoverService extends ExchangeServiceBase {
    */
   protected void setDnsServerAddress(String value) {
     this.dnsServerAddress = value;
+  }
+
+  /**
+   * @return Dummy response containing the O365 EWS url.
+   */
+  private GetUserSettingsResponse createO365UserSettingsResponse() {
+    GetUserSettingsResponse response = new GetUserSettingsResponse();
+
+    response.setErrorCode(AutodiscoverErrorCode.NoError);
+    response.getSettings().put(UserSettingName.ExternalEwsUrl, o365EwsUrl);
+    response.getSettings().put(UserSettingName.InternalEwsUrl, o365EwsUrl);
+
+    return response;
   }
 }
