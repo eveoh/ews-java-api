@@ -41,8 +41,7 @@ import java.util.TimeZone;
 /**
  * Represents a binding to the Exchange Web Services.
  */
-public final class ExchangeService extends ExchangeServiceBase implements
-    IAutodiscoverRedirectionUrl {
+public final class ExchangeService extends ExchangeServiceBase {
 
   /**
    * The url.
@@ -3438,20 +3437,6 @@ public final class ExchangeService extends ExchangeServiceBase implements
   }
 
   /**
-   * Default implementation of AutodiscoverRedirectionUrlValidationCallback.
-   * Always returns true indicating that the URL can be used.
-   *
-   * @param redirectionUrl the redirection url
-   * @return Returns true.
-   * @throws AutodiscoverLocalException the autodiscover local exception
-   */
-  private boolean defaultAutodiscoverRedirectionUrlValidationCallback(
-      String redirectionUrl) throws AutodiscoverLocalException {
-    throw new AutodiscoverLocalException(String.format(
-        Strings.AutodiscoverRedirectBlocked, redirectionUrl));
-  }
-
-  /**
    * Initializes the Url property to the Exchange Web Services URL for the
    * specified e-mail address by calling the Autodiscover service.
    *
@@ -3459,7 +3444,7 @@ public final class ExchangeService extends ExchangeServiceBase implements
    * @throws Exception the exception
    */
   public void autodiscoverUrl(String emailAddress) throws Exception {
-    this.autodiscoverUrl(emailAddress, this);
+    this.autodiscoverUrl(emailAddress, null);
   }
 
   /**
@@ -3893,17 +3878,4 @@ public final class ExchangeService extends ExchangeServiceBase implements
 
     return timeZoneList;
   }
-
-  /*
-	 * (non-Javadoc)
-	 * 
-	 * @seemicrosoft.exchange.webservices.AutodiscoverRedirectionUrlInterface#
-	 * autodiscoverRedirectionUrlValidationCallback(java.lang.String)
-	 */
-  public boolean autodiscoverRedirectionUrlValidationCallback(
-      String redirectionUrl) throws AutodiscoverLocalException {
-    return defaultAutodiscoverRedirectionUrlValidationCallback(redirectionUrl);
-
-  }
-
 }
