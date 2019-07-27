@@ -24,7 +24,6 @@
 package microsoft.exchange.webservices.data;
 
 import javax.xml.stream.XMLStreamException;
-import javax.xml.ws.http.HTTPException;
 import java.io.*;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
@@ -419,13 +418,6 @@ abstract class ServiceRequestBase<T> {
       }
 
       return serviceResponse;
-    } catch (HTTPException e) {
-      if (e.getMessage() != null) {
-        this.getService().processHttpResponseHeaders(
-            TraceFlags.EwsResponseHttpHeaders, response);
-      }
-      throw new ServiceRequestException(String.format(
-          Strings.ServiceRequestFailed, e.getMessage()), e);
     } catch (IOException e) {
       throw new ServiceRequestException(String.format(
           Strings.ServiceRequestFailed, e.getMessage()), e);

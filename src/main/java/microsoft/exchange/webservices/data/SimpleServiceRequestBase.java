@@ -26,7 +26,6 @@ package microsoft.exchange.webservices.data;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import javax.xml.ws.http.HTTPException;
 import java.io.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
